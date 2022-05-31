@@ -1,0 +1,35 @@
+<select id="source">
+  <option selected value="Library">Library</option>
+</select>
+<p>Component: <input id="search" type="text" placeholder="I'm looking for a..."></p>
+<div id="results">
+</div>
+<button id="insert">Insert</button>
+<button id="cancel">Cancel</button>
+
+<script>
+  window.onmessage = ({data}) => {
+    if (data.pluginMessage.type=== 'results') {
+      console.log(data.pluginMessage.results)
+    }
+  }
+  const getQuery = () => {
+    const searchBox = document.getElementById('search');
+    const componentName = searchBox.value;
+
+    return componentName;
+  }
+
+  parent.postMessage({ pluginMessage: { type: 'load'} }, '*')
+  document.getElementById('search').oninput = () => {
+    parent.postMessage({ pluginMessage: { type: 'fetch-results', componentName: getQuery(), source: 'Library'} }, '*')
+  }
+
+  document.getElementById('insert').onclick = () => {
+    parent.postMessage({ pluginMessage: { type: 'insert-component', componentName: getQuery(), source: 'Library'} }, '*')
+  }
+
+  document.getElementById('cancel').onclick = () => {
+    parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
+  }
+</script>
