@@ -2,6 +2,7 @@
 // You can access browser APIs such as the network by creating a UI which contains
 // a full browser environment (see documentation).
 
+// Two helper functions that can help you perform traversals are node.findOne and node.findAll.
 function* walkTree(node) {
   yield node;
   let children = node.children;
@@ -26,7 +27,7 @@ if (figma.editorType === 'figma') {
 
   const getNodes = (query, source, level = null) => {
       const nodes = [];
-      const sourcePage = figma.root.children.find(page => page.name === source)
+      const sourcePage = figma.root.children.find(page => page.id === source)
       let walker = walkTree(sourcePage)
       let res;
 
@@ -36,24 +37,43 @@ if (figma.editorType === 'figma') {
           nodes.push(node);
         }
       }
-
+      
       return nodes;
   }
+
+  const getNode = (match, source, level = null) => {
+      const sourcePage = figma.root.children.find(page => page.id === source)
+      let walker = walkTree(sourcePage)
+      let res;
+      let result;
+
+      while (!(res = walker.next()).done) {
+        let node = res.value
+        if (node.type === (level ?? 'INSTANCE') && node.name === match) {
+          result = node;
+        }
+      }
+      
+      return result;
+  }
+
+
 
   figma.ui.onmessage = msg => {
     // One way of distinguishing between different types of messages sent from
     // your HTML page is to use an object with a "type" property like this.
+    if (msg.type === 'fetch-pages') {
+      const pages = figma.root.children;
+      figma.ui.postMessage({type: 'pages', pages: pages.map(r => ({title: r.name, id: r.id}))});
+    }
+
     if (msg.type === 'fetch-results') {
       const results = getNodes(msg.componentName, msg.source, msg.level);
-      figma.ui.postMessage({type: 'results', results});
+      figma.ui.postMessage({type: 'results', results: results.map(r => r.name)});
     }
 
     if (msg.type === 'insert-component') {
-      const nodes = getNodes(msg.componentName, msg.source, msg.level);
-      const clones = nodes.map(node => node.clone());
-
-      figma.currentPage.selection = clones;
-      figma.viewport.scrollAndZoomIntoView(clones);
+      getNode(msg.componentName, msg.source, msg.level).clone();
       // figma.closePlugin();
     }
 

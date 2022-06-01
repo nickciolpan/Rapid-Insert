@@ -1,16 +1,43 @@
-<select id="source">
-  <option selected value="Library">Library</option>
-</select>
+<select id="source"></select>
 <p>Component: <input id="search" type="text" placeholder="I'm looking for a..."></p>
-<div id="results">
-</div>
+<ul id="results"><ul/>
 <button id="insert">Insert</button>
 <button id="cancel">Cancel</button>
-
 <script>
+  /**
+   * TODO: 
+   * 1. Check why insert and cancel buttons dissapear after autocomplete
+   * 2. On enter, take the currentlys elected item - the first result is always selected
+   * 3. Make an item visible before clone - maybe add a setting
+   * 4. choose to display only the first with the same name - see if theres any other way to differntiate
+   * 5. Allow to choose search level (instance, component, type etc.)
+   */
+
   window.onmessage = ({data}) => {
+    if (data.pluginMessage.type === 'pages') {
+      const { pages } = data.pluginMessage;
+      const source = document.getElementById('source');
+      pages.forEach(page => {
+        const option = document.createElement('option');
+        option.value = page.id;
+        option.textContent = page.title;
+        source.appendChild(option);
+      }); 
+    }
     if (data.pluginMessage.type=== 'results') {
-      console.log(data.pluginMessage.results)
+      const resultsEl = document.getElementById('results');
+      const results = data.pluginMessage.results;
+      resultsEl.innerHTML = ''; 
+      const fragment = new DocumentFragment()
+
+      results.map(result => {
+        const li = document.createElement('li');
+        li.textContent = result
+        li.classList.add('result');
+        fragment.appendChild(li);
+      })
+
+      resultsEl.appendChild(fragment);
     }
   }
   const getQuery = () => {
@@ -19,14 +46,27 @@
 
     return componentName;
   }
+  const getSource = () => {
+    const source = document.getElementById('source');
+    const sourceId = source.value;
 
-  parent.postMessage({ pluginMessage: { type: 'load'} }, '*')
+    return sourceId;
+  }
+
+  parent.postMessage({ pluginMessage: { type: 'fetch-pages'} }, '*')
+
+  document.body.addEventListener("click", function (event) {
+    if (event.target.classList.contains("result")) {
+      parent.postMessage({ pluginMessage: { type: 'insert-component', componentName: event.target.textContent, source: getSource()} }, '*')
+    }
+  });
+
   document.getElementById('search').oninput = () => {
-    parent.postMessage({ pluginMessage: { type: 'fetch-results', componentName: getQuery(), source: 'Library'} }, '*')
+    parent.postMessage({ pluginMessage: { type: 'fetch-results', componentName: getQuery(), source: getSource()} }, '*')
   }
 
   document.getElementById('insert').onclick = () => {
-    parent.postMessage({ pluginMessage: { type: 'insert-component', componentName: getQuery(), source: 'Library'} }, '*')
+    parent.postMessage({ pluginMessage: { type: 'insert-component', componentName: getQuery(), source: getSource()} }, '*')
   }
 
   document.getElementById('cancel').onclick = () => {
