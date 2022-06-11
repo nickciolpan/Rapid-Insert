@@ -1,18 +1,27 @@
-<p>Source: <select id="source"></select></p>
-<p>Component: <input id="search" type="text" placeholder="I'm looking for a..."></p>
-<ul id="results"><ul/>
+<p>Source page: <select id="source-page-widget"></select></p>
+<p>Component name: <input id="search-component-widget" type="search" placeholder="I'm looking for a..."></p>
+<ul id="component-results-outlet"><ul/>
 <script>
   window.onmessage = ({data}) => {
-    document.getElementById('search').focus();
+    // Focus the search input as soon as the plugin fires
+    ((searchComponentWidget) => {
+      if (!!searchComponentWidget) searchComponentWidget.focus();
+    })(document.getElementById('search-component-widget'));
 
-    if (data.pluginMessage.type === 'current-source') {
-      console.log('current-source', data.pluginMessage.source);
-      document.getElementById('source').value = data.pluginMessage.source;
+    switch (data.pluginMessage.type) {
+      case 'retrieved-current-source':
+        // If the user has previous selected a source page, it will retrieve it
+        // from the clientStorage and select it in the dropdown. 
+        document.getElementById('source-page-widget').value = data.pluginMessage.source;
+        break;
+    
+      default:
+        break;
     }
 
     if (data.pluginMessage.type === 'pages') {
       const { pages } = data.pluginMessage;
-      const source = document.getElementById('source');
+      const source = document.getElementById('source-page-widget');
       pages.forEach(page => {
         const option = document.createElement('option');
         option.value = page.title;
@@ -20,8 +29,8 @@
         source.appendChild(option);
       }); 
     }
-    if (data.pluginMessage.type=== 'results') {
-      const resultsEl = document.getElementById('results');
+    if (data.pluginMessage.type === 'results') {
+      const resultsEl = document.getElementById('component-results-outlet');
       const results = data.pluginMessage.results;
       resultsEl.innerHTML = ''; 
       const fragment = new DocumentFragment()
@@ -42,13 +51,13 @@
     }
   }
   const getQuery = () => {
-    const searchBox = document.getElementById('search');
+    const searchBox = document.getElementById('search-component-widget');
     const componentName = searchBox.value;
 
     return componentName;
   }
   const getSource = () => {
-    const source = document.getElementById('source');
+    const source = document.getElementById('source-page-widget');
     const sourceId = source.value;
 
     return sourceId;
@@ -117,10 +126,10 @@
     }
   });
 
-  document.getElementById('search').oninput = () => {
+  document.getElementById('search-component-widget').oninput = () => {
     parent.postMessage({ pluginMessage: { type: 'fetch-results', componentName: getQuery(), source: getSource()} }, '*')
   }
-  document.getElementById('source').onchange = (event) => {
+  document.getElementById('source-page-widget').onchange = (event) => {
     parent.postMessage({ pluginMessage: { type: 'update-source', source: event.target.value } }, '*')
   }
 </script>

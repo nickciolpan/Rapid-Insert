@@ -1,9 +1,7 @@
-// This file holds the main code for the plugin. It has access to the *document*.
-// You can access browser APIs such as the network by creating a UI which contains
-// a full browser environment (see documentation).
-
-// Two helper functions that can help you perform traversals are node.findOne and node.findAll.
-function* walkTree(node) {
+/**
+ * Utility functions to help parse the *documents* Figma tree
+ */
+function* walkTree(node: any) {
   yield node;
   let children = node.children;
   if (children) {
@@ -13,6 +11,43 @@ function* walkTree(node) {
   }
 }
 
+const useWalker = (source) => {
+  const sourcePage = figma.root.children.find(page => page.name === source)
+  let walker = walkTree(sourcePage)
+  return {walker};
+}
+const findAll = (query: string, source: any, level = null) => {
+    // If no query is provided, return no results
+    if (query.length === 0) return [];
+
+    const { walker } = useWalker(source);
+    const nodes = [];
+    let res: { value: any; };
+
+    while (!(res = walker.next()).done) {
+      let node = res.value
+      if (node.type === (level ?? 'INSTANCE') && node.name.toLowerCase().includes(query.toLowerCase())) {
+        nodes.push(node);
+      }
+    }
+    
+    return nodes;
+}
+
+const findOne = (match: any, source: any, level = null) => {
+    const { walker } = useWalker(source);
+    let res: { value: any; };
+    let result: any;
+
+    while (!(res = walker.next()).done) {
+      let node = res.value
+      if (node.type === (level ?? 'INSTANCE') && node.name === match) {
+        result = node;
+      }
+    }
+    
+    return result;
+}
 // Runs this code if the plugin is run in Figma
 if (figma.editorType === 'figma') {
   // This plugin will open a window to prompt the user to enter a number, and
@@ -20,48 +55,10 @@ if (figma.editorType === 'figma') {
 
   // This shows the HTML page in "ui.html".
   figma.showUI(__html__);
-
   // Calls to "parent.postMessage" from within the HTML page will trigger this
   // callback. The callback will be passed the "pluginMessage" property of the
   // posted message.
-
-  const getNodes = (query, source, level = null) => {
-      if (query.length === 0) return [];
-
-      const nodes = [];
-      const sourcePage = figma.root.children.find(page => page.name === source)
-      let walker = walkTree(sourcePage)
-      let res;
-
-      while (!(res = walker.next()).done) {
-        let node = res.value
-        if (node.type === (level ?? 'INSTANCE') && node.name.toLowerCase().includes(query.toLowerCase())) {
-          nodes.push(node);
-        }
-      }
-      
-      return nodes;
-  }
-
-  const getNode = (match, source, level = null) => {
-      const sourcePage = figma.root.children.find(page => page.id === source)
-      let walker = walkTree(sourcePage)
-      let res;
-      let result;
-
-      while (!(res = walker.next()).done) {
-        let node = res.value
-        if (node.type === (level ?? 'INSTANCE') && node.name === match) {
-          result = node;
-        }
-      }
-      
-      return result;
-  }
-
-
-
-  figma.ui.onmessage = msg => {
+  figma.ui.onmessage = async msg => {
     // One way of distinguishing between different types of messages sent from
     // your HTML page is to use an object with a "type" property like this.
     if (msg.type === 'fetch-pages') {
@@ -70,18 +67,18 @@ if (figma.editorType === 'figma') {
     }
 
     if (msg.type === 'get-current-source') {
-      const source = figma.clientStorage.getAsync('source');
-      console.log('getAsync', source);
-      figma.ui.postMessage({type: 'current-source', source});
+      figma.ui.postMessage({
+        type: 'retrieved-current-source', 
+        source: await figma.clientStorage.getAsync('source')
+      });
     }
 
     if (msg.type === 'update-source') {
-      console.log('update', msg.source)
       figma.clientStorage.setAsync('source', msg.source);
     }
 
     if (msg.type === 'fetch-results') {
-      const results = getNodes(msg.componentName, msg.source, msg.level);
+      const results = findAll(msg.componentName, msg.source, msg.level);
       figma.ui.postMessage({
         type: 'results', 
         results: Array.from(new Map(results.map(r => [r.name, r])).keys())
@@ -90,7 +87,7 @@ if (figma.editorType === 'figma') {
     }
 
     if (msg.type === 'insert-component') {
-      const node = getNode(msg.componentName, msg.source, msg.level)
+      const node = findOne(msg.componentName, msg.source, msg.level)
       node.visible = true;
       const clone = node.clone();
 
