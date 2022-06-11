@@ -1,25 +1,21 @@
-<select id="source"></select>
+<p>Source: <select id="source"></select></p>
 <p>Component: <input id="search" type="text" placeholder="I'm looking for a..."></p>
 <ul id="results"><ul/>
-<button id="insert">Insert</button>
-<button id="cancel">Cancel</button>
 <script>
-  /**
-   * TODO: 
-   * 1. Check why insert and cancel buttons dissapear after autocomplete
-   * 2. On enter, take the currentlys elected item - the first result is always selected
-   * 3. Make an item visible before clone - maybe add a setting
-   * 4. choose to display only the first with the same name - see if theres any other way to differntiate
-   * 5. Allow to choose search level (instance, component, type etc.)
-   */
-
   window.onmessage = ({data}) => {
+    document.getElementById('search').focus();
+
+    if (data.pluginMessage.type === 'current-source') {
+      console.log('current-source', data.pluginMessage.source);
+      document.getElementById('source').value = data.pluginMessage.source;
+    }
+
     if (data.pluginMessage.type === 'pages') {
       const { pages } = data.pluginMessage;
       const source = document.getElementById('source');
       pages.forEach(page => {
         const option = document.createElement('option');
-        option.value = page.id;
+        option.value = page.title;
         option.textContent = page.title;
         source.appendChild(option);
       }); 
@@ -30,10 +26,15 @@
       resultsEl.innerHTML = ''; 
       const fragment = new DocumentFragment()
 
-      results.map(result => {
+      results.map((result, index) => {
         const li = document.createElement('li');
         li.textContent = result
         li.classList.add('result');
+        li.style.cursor = "pointer";
+        if (index === 0) {
+          li.classList.add('selected');
+          li.style.backgroundColor= "gray";
+        }
         fragment.appendChild(li);
       })
 
@@ -54,6 +55,7 @@
   }
 
   parent.postMessage({ pluginMessage: { type: 'fetch-pages'} }, '*')
+  parent.postMessage({ pluginMessage: { type: 'get-current-source'} }, '*')
 
   document.body.addEventListener("click", function (event) {
     if (event.target.classList.contains("result")) {
@@ -61,15 +63,64 @@
     }
   });
 
+  document.body.addEventListener("keydown", function (event) {
+    const results = document.querySelectorAll('.result');
+    if (results.length > 0) {
+      if (event.key === 'ArrowDown') {
+        const selected = document.querySelector('.selected');
+        if (selected) {
+          selected.classList.remove('selected');
+          selected.style.backgroundColor = 'transparent';
+          const next = selected.nextElementSibling;
+          if (next) {
+            next.classList.add('selected');
+            next.style.backgroundColor= "gray";
+          } else {
+            results[0].classList.add('selected');
+            results[0].style.backgroundColor= "gray";
+          }
+      }
+    } else if (event.key === 'ArrowUp') {
+        const selected = document.querySelector('.selected');
+        if (selected) {
+          selected.classList.remove('selected');
+          selected.style.backgroundColor = 'transparent';
+          const prev = selected.previousElementSibling;
+          if (prev) {
+            prev.classList.add('selected');
+            prev.style.backgroundColor= "gray";
+          } else {
+            results[results.length - 1].classList.add('selected');
+            results[results.length - 1].style.backgroundColor= "gray";
+          }
+      }
+    } else if (event.key === 'Enter') {
+      const selected = document.querySelector('.selected');
+      if (selected) {
+        parent.postMessage({ pluginMessage: { type: 'insert-component', componentName: selected.textContent, source: getSource()} }, '*')
+      }
+    } 
+   }
+  if (event.key === 'Escape') {
+    parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
+  }
+  });
+
+  document.body.addEventListener("mouseover", function (event) {
+    if (event.target.classList.contains("result")) {
+      Array.from(document.querySelectorAll('.result')).map(result => {
+        result.classList.remove('selected');
+        result.style.backgroundColor = 'transparent';
+      });
+      event.target.style.backgroundColor = "gray";
+      event.target.classList.add('selected');
+    }
+  });
+
   document.getElementById('search').oninput = () => {
     parent.postMessage({ pluginMessage: { type: 'fetch-results', componentName: getQuery(), source: getSource()} }, '*')
   }
-
-  document.getElementById('insert').onclick = () => {
-    parent.postMessage({ pluginMessage: { type: 'insert-component', componentName: getQuery(), source: getSource()} }, '*')
-  }
-
-  document.getElementById('cancel').onclick = () => {
-    parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
+  document.getElementById('source').onchange = (event) => {
+    parent.postMessage({ pluginMessage: { type: 'update-source', source: event.target.value } }, '*')
   }
 </script>

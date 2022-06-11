@@ -26,8 +26,10 @@ if (figma.editorType === 'figma') {
   // posted message.
 
   const getNodes = (query, source, level = null) => {
+      if (query.length === 0) return [];
+
       const nodes = [];
-      const sourcePage = figma.root.children.find(page => page.id === source)
+      const sourcePage = figma.root.children.find(page => page.name === source)
       let walker = walkTree(sourcePage)
       let res;
 
@@ -64,18 +66,42 @@ if (figma.editorType === 'figma') {
     // your HTML page is to use an object with a "type" property like this.
     if (msg.type === 'fetch-pages') {
       const pages = figma.root.children;
-      figma.ui.postMessage({type: 'pages', pages: pages.map(r => ({title: r.name, id: r.id}))});
+      figma.ui.postMessage({type: 'pages',figma: figma,  pages: pages.map(r => ({title: r.name, id: r.id}))});
+    }
+
+    if (msg.type === 'get-current-source') {
+      const source = figma.clientStorage.getAsync('source');
+      console.log('getAsync', source);
+      figma.ui.postMessage({type: 'current-source', source});
+    }
+
+    if (msg.type === 'update-source') {
+      console.log('update', msg.source)
+      figma.clientStorage.setAsync('source', msg.source);
     }
 
     if (msg.type === 'fetch-results') {
       const results = getNodes(msg.componentName, msg.source, msg.level);
-      figma.ui.postMessage({type: 'results', results: results.map(r => r.name)});
+      figma.ui.postMessage({
+        type: 'results', 
+        results: Array.from(new Map(results.map(r => [r.name, r])).keys())
+        // results: results.map(r => r.name)
+      });
     }
 
     if (msg.type === 'insert-component') {
-      getNode(msg.componentName, msg.source, msg.level).clone();
-      // figma.closePlugin();
+      const node = getNode(msg.componentName, msg.source, msg.level)
+      node.visible = true;
+      const clone = node.clone();
+
+      figma.currentPage.selection = [clone];
+      figma.viewport.scrollAndZoomIntoView([clone]);
     }
+
+    if (msg.type === 'cancel') {
+      figma.closePlugin();
+    }
+
 
     // Make sure to close the plugin when you're done. Otherwise the plugin will
     // keep running, which shows the cancel button at the bottom of the screen.
