@@ -1,7 +1,49 @@
-<p>Source page: <select id="source-page-widget"></select></p>
-<p>Component name: <input id="search-component-widget" type="search" placeholder="I'm looking for a..."></p>
-<ul id="component-results-outlet"><ul/>
+<div>
+  <div
+    style="display: flex; width: 100%; font-size: 16px; line-height: 1; border-bottom: 1px solid #4C2FFC">
+    <input 
+      id="search-component-widget" 
+      type="search" 
+      placeholder="I'm looking for a..."
+      style="outline: none; width: 100%; height: 30px; border: 0; font-size: inherit; line-height: inherit;"
+      >
+    <div style="display:flex; align-items: center; font-size: inherit; line-height: inherit;"><span style="font-family: Arial, Helvetica, sans-serif;">from: </span> 
+      <select
+       style="min-width: 100px; width: 100%; height: 30px; border: 0; font-size: inherit; line-height: inherit;"
+       id="source-page-widget"></select></div>
+  </div>
+  <ul 
+  id="component-results-outlet"
+  style="list-style: none; padding: 0; margin-top: 10px;"
+  ><ul/>
+</div>
 <script>
+  // value getters utils
+  const getQuery = () => document.getElementById('search-component-widget').value;
+  const getSource = () => document.getElementById('source-page-widget').value;
+
+  // styling utils
+  const applyListItemHoverStyles = (li) => {
+    li.style.backgroundColor = '#4C2FFC';
+    li.style.color= 'white';
+    li.style.padding = '3px';
+  }
+
+  const applyListItemStyles = (li) => {
+    li.style.backgroundColor = 'transparent';
+    li.style.color= 'black';
+    li.style.padding = '5px';
+    li.style.borderRadius= '5px';
+    li.style.cursor = "pointer";
+    li.style.fontSize = "inherit";
+    li.style.lineHeight = "inherit";
+    li.style.fontFamily = "Arial, Helvetica, sans-serif";
+  }
+
+  // Data to retrieve or actions to perform on the initial plugin load (e.g. available pages)  
+  parent.postMessage({ pluginMessage: { type: 'fetch-pages'} }, '*')
+  parent.postMessage({ pluginMessage: { type: 'get-current-source'} }, '*')
+
   window.onmessage = ({data}) => {
     // Focus the search input as soon as the plugin fires
     ((searchComponentWidget) => {
@@ -9,62 +51,59 @@
     })(document.getElementById('search-component-widget'));
 
     switch (data.pluginMessage.type) {
+      // If the user has previous selected a source page, it will retrieve it
+      // from the clientStorage and select it in the dropdown. 
       case 'retrieved-current-source':
-        // If the user has previous selected a source page, it will retrieve it
-        // from the clientStorage and select it in the dropdown. 
-        document.getElementById('source-page-widget').value = data.pluginMessage.source;
-        break;
-    
+          document.getElementById('source-page-widget').value = data.pluginMessage.source;
+          break;
+
+        // Build the available pagas dropdown
+        // This will serve as the source in which the user will search for the component
+        case 'pages':
+          ((source) => {
+            if (!!source) {
+              const { pages } = data.pluginMessage;
+              pages.forEach(page => {
+                const option = document.createElement('option');
+                option.value = page.title;
+                option.textContent = page.title;
+                source.appendChild(option);
+              }); 
+            }
+          })(document.getElementById('source-page-widget'))
+          break;
+
+        case 'results':
+          ((outlet) => {
+          // clear the list's contents and prepare a new document fragment
+            outlet.innerHTML = ''; 
+            const fragment = new DocumentFragment()
+
+            //retrieve the results from the plugin message
+            const { results }= data.pluginMessage;
+
+            results.map((result, index) => {
+              const li = document.createElement('li');
+              li.textContent = result
+              li.classList.add('result');
+              applyListItemStyles(li);
+
+              // Always make the first result, the selected one
+              if (index === 0) {
+                li.classList.add('selected');
+                applyListItemHoverStyles(li);
+              }
+              fragment.appendChild(li);
+            })
+
+            outlet.appendChild(fragment);
+          })(document.getElementById('component-results-outlet'));
+          break;
+
       default:
         break;
     }
-
-    if (data.pluginMessage.type === 'pages') {
-      const { pages } = data.pluginMessage;
-      const source = document.getElementById('source-page-widget');
-      pages.forEach(page => {
-        const option = document.createElement('option');
-        option.value = page.title;
-        option.textContent = page.title;
-        source.appendChild(option);
-      }); 
-    }
-    if (data.pluginMessage.type === 'results') {
-      const resultsEl = document.getElementById('component-results-outlet');
-      const results = data.pluginMessage.results;
-      resultsEl.innerHTML = ''; 
-      const fragment = new DocumentFragment()
-
-      results.map((result, index) => {
-        const li = document.createElement('li');
-        li.textContent = result
-        li.classList.add('result');
-        li.style.cursor = "pointer";
-        if (index === 0) {
-          li.classList.add('selected');
-          li.style.backgroundColor= "gray";
-        }
-        fragment.appendChild(li);
-      })
-
-      resultsEl.appendChild(fragment);
-    }
   }
-  const getQuery = () => {
-    const searchBox = document.getElementById('search-component-widget');
-    const componentName = searchBox.value;
-
-    return componentName;
-  }
-  const getSource = () => {
-    const source = document.getElementById('source-page-widget');
-    const sourceId = source.value;
-
-    return sourceId;
-  }
-
-  parent.postMessage({ pluginMessage: { type: 'fetch-pages'} }, '*')
-  parent.postMessage({ pluginMessage: { type: 'get-current-source'} }, '*')
 
   document.body.addEventListener("click", function (event) {
     if (event.target.classList.contains("result")) {
@@ -79,28 +118,28 @@
         const selected = document.querySelector('.selected');
         if (selected) {
           selected.classList.remove('selected');
-          selected.style.backgroundColor = 'transparent';
+          applyListItemStyles(selected);
           const next = selected.nextElementSibling;
           if (next) {
             next.classList.add('selected');
-            next.style.backgroundColor= "gray";
+            applyListItemHoverStyles(next);
           } else {
             results[0].classList.add('selected');
-            results[0].style.backgroundColor= "gray";
+            applyListItemHoverStyles(results[0]);
           }
       }
     } else if (event.key === 'ArrowUp') {
         const selected = document.querySelector('.selected');
         if (selected) {
           selected.classList.remove('selected');
-          selected.style.backgroundColor = 'transparent';
+          applyListItemStyles(selected);
           const prev = selected.previousElementSibling;
           if (prev) {
             prev.classList.add('selected');
-            prev.style.backgroundColor= "gray";
+            applyListItemHoverStyles(prev);
           } else {
             results[results.length - 1].classList.add('selected');
-            results[results.length - 1].style.backgroundColor= "gray";
+            applyListItemHoverStyles(results[results.length - 1]);
           }
       }
     } else if (event.key === 'Enter') {
@@ -119,10 +158,10 @@
     if (event.target.classList.contains("result")) {
       Array.from(document.querySelectorAll('.result')).map(result => {
         result.classList.remove('selected');
-        result.style.backgroundColor = 'transparent';
+        applyListItemStyles(result);
       });
-      event.target.style.backgroundColor = "gray";
       event.target.classList.add('selected');
+      applyListItemHoverStyles(event.target);
     }
   });
 
@@ -132,4 +171,5 @@
   document.getElementById('source-page-widget').onchange = (event) => {
     parent.postMessage({ pluginMessage: { type: 'update-source', source: event.target.value } }, '*')
   }
+
 </script>

@@ -1,11 +1,10 @@
 {
-  "name": "Rapid Insert",
-  "id": "1112683655796229443",
   "api": "1.0.0",
-  "main": "code.js",
   "editorType": [
-    "figma",
-    "figjam"
+    "figma"
   ],
+  "id": "1112683655796229443",
+  "main": "code.js",
+  "name": "Rapid Insert",
   "ui": "ui.html"
 }

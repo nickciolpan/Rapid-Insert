@@ -57,6 +57,7 @@ if (figma.editorType === 'figma') {
     // it will then create that many rectangles on the screen.
     // This shows the HTML page in "ui.html".
     figma.showUI(__html__);
+    figma.ui.resize(300, 300);
     // Calls to "parent.postMessage" from within the HTML page will trigger this
     // callback. The callback will be passed the "pluginMessage" property of the
     // posted message.

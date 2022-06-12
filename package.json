@@ -1,7 +1,7 @@
 {
   "name": "Rapid-Insert",
   "version": "1.0.0",
-  "description": "Your Figma Plugin",
+  "description": "The quickest way to rapid prototyping.",
   "main": "code.js",
   "scripts": {
     "build": "tsc -p tsconfig.json"
