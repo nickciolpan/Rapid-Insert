@@ -11,6 +11,8 @@ function* walkTree(node: any) {
   }
 }
 
+let latestPreview = null;
+
 const useWalker = (source) => {
   const sourcePage = figma.root.children.find(page => page.name === source)
   let walker = walkTree(sourcePage)
@@ -48,6 +50,28 @@ const findOne = (match: any, source: any, level = null) => {
     
     return result;
 }
+
+const generateResults = (msg) => {
+  const results = findAll(msg.componentName, msg.source, msg.level);
+  figma.ui.postMessage({
+    type: 'results', 
+    results: Array.from(new Map(results.map(r => [r.name, r])).keys())
+  });
+}
+
+const generatePreview = (msg) => {
+  const node = findOne(msg.componentName, msg.source, msg.level)
+  if (!!latestPreview) latestPreview.remove();
+  if (!!node) {
+    node.visible = true;
+    latestPreview = node.clone();
+    figma.currentPage.selection = [latestPreview];
+    figma.viewport.scrollAndZoomIntoView([latestPreview]);
+    
+  }
+}
+
+
 // Runs this code if the plugin is run in Figma
 if (figma.editorType === 'figma') {
   // This plugin will open a window to prompt the user to enter a number, and
@@ -75,16 +99,29 @@ if (figma.editorType === 'figma') {
     }
 
     if (msg.type === 'update-source') {
-      figma.clientStorage.setAsync('source', msg.source);
+      await figma.clientStorage.setAsync('source', msg.source);
     }
 
     if (msg.type === 'fetch-results') {
-      const results = findAll(msg.componentName, msg.source, msg.level);
-      figma.ui.postMessage({
-        type: 'results', 
-        results: Array.from(new Map(results.map(r => [r.name, r])).keys())
-        // results: results.map(r => r.name)
-      });
+      generateResults(msg);
+    }
+
+    if (msg.type === 'preview:remove') {
+      if (!!latestPreview) latestPreview.remove();
+      latestPreview = null;
+    }
+
+    if (msg.type === 'preview:insert') {
+      // The node is already insered at this point
+      // We just need to close the plugin
+      if (!!latestPreview) {
+        latestPreview = null;
+        figma.closePlugin();
+      }
+    }
+
+    if (msg.type === 'preview') {
+      generatePreview(msg);
     }
 
     if (msg.type === 'insert-component') {

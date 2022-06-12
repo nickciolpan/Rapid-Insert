@@ -1,3 +1,4 @@
+
 <div>
   <div
     style="display: flex; width: 100%; font-size: 16px; line-height: 1; border-bottom: 1px solid #4C2FFC">
@@ -18,6 +19,13 @@
   ><ul/>
 </div>
 <script>
+
+  // TODO:
+  // 1. Reload logic after source change
+  // 2. Add settings: a)disbale preview b) adjsut component level
+  // 3. fix scroll and keyboard bindings while nativ einput is actvie (See soure select)
+  // 4. Create publishable assets (icon, cover and copy text)
+
   // value getters utils
   const getQuery = () => document.getElementById('search-component-widget').value;
   const getSource = () => document.getElementById('source-page-widget').value;
@@ -90,6 +98,7 @@
 
               // Always make the first result, the selected one
               if (index === 0) {
+                parent.postMessage({ pluginMessage: { type: 'preview', componentName: li.textContent, source: getSource()} }, '*')
                 li.classList.add('selected');
                 applyListItemHoverStyles(li);
               }
@@ -107,7 +116,8 @@
 
   document.body.addEventListener("click", function (event) {
     if (event.target.classList.contains("result")) {
-      parent.postMessage({ pluginMessage: { type: 'insert-component', componentName: event.target.textContent, source: getSource()} }, '*')
+      parent.postMessage({ pluginMessage: { type: 'preview:insert' } }, '*')
+      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
     }
   });
 
@@ -123,9 +133,11 @@
           if (next) {
             next.classList.add('selected');
             applyListItemHoverStyles(next);
+            parent.postMessage({ pluginMessage: { type: 'preview', componentName: next.textContent, source: getSource()} }, '*');
           } else {
             results[0].classList.add('selected');
             applyListItemHoverStyles(results[0]);
+            parent.postMessage({ pluginMessage: { type: 'preview', componentName: results[0].textContent, source: getSource()} }, '*');
           }
       }
     } else if (event.key === 'ArrowUp') {
@@ -137,24 +149,27 @@
           if (prev) {
             prev.classList.add('selected');
             applyListItemHoverStyles(prev);
+            parent.postMessage({ pluginMessage: { type: 'preview', componentName: prev.textContent, source: getSource()} }, '*');
           } else {
             results[results.length - 1].classList.add('selected');
             applyListItemHoverStyles(results[results.length - 1]);
+            parent.postMessage({ pluginMessage: { type: 'preview', componentName: results[results.length - 1].textContent, source: getSource()} }, '*');
           }
       }
     } else if (event.key === 'Enter') {
       const selected = document.querySelector('.selected');
       if (selected) {
-        parent.postMessage({ pluginMessage: { type: 'insert-component', componentName: selected.textContent, source: getSource()} }, '*')
+        parent.postMessage({ pluginMessage: { type: 'preview:insert' } }, '*')
       }
     } 
    }
   if (event.key === 'Escape') {
+    parent.postMessage({ pluginMessage: { type: 'preview:remove' } }, '*')
     parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
   }
   });
 
-  document.body.addEventListener("mouseover", function (event) {
+  document.body.addEventListener("mouseover", (event) => {
     if (event.target.classList.contains("result")) {
       Array.from(document.querySelectorAll('.result')).map(result => {
         result.classList.remove('selected');
@@ -162,6 +177,7 @@
       });
       event.target.classList.add('selected');
       applyListItemHoverStyles(event.target);
+      parent.postMessage({ pluginMessage: { type: 'preview', componentName: event.target.textContent, source: getSource()} }, '*');
     }
   });
 
