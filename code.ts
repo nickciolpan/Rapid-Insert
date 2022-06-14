@@ -20,15 +20,19 @@ const useWalker = (source) => {
 }
 const findAll = (query: string, source: any, level = null) => {
     // If no query is provided, return no results
-    if (query.length === 0) return [];
+    if (query.length <= 1) return [];
 
     const { walker } = useWalker(source);
     const nodes = [];
     let res: { value: any; };
 
+    const isMatch = (name) => {
+      return name.toLowerCase().includes(query.toLowerCase())
+    }
+
     while (!(res = walker.next()).done) {
       let node = res.value
-      if (node.type === (level ?? 'INSTANCE') && node.name.toLowerCase().includes(query.toLowerCase())) {
+      if (node.type === (level ?? 'INSTANCE') && isMatch(node.name)) {
         nodes.push(node);
       }
     }
@@ -61,7 +65,14 @@ const generateResults = (msg) => {
 
 const generatePreview = (msg) => {
   const node = findOne(msg.componentName, msg.source, msg.level)
-  if (!!latestPreview) latestPreview.remove();
+  if (!!latestPreview) {
+    try {
+      latestPreview.remove();
+    } catch (e) {
+      latestPreview = null;
+    }
+  }
+
   if (!!node) {
     node.visible = true;
     latestPreview = node.clone();
@@ -99,7 +110,22 @@ if (figma.editorType === 'figma') {
     }
 
     if (msg.type === 'update-source') {
+      try { 
+        latestPreview.remove();
+      } catch (e) {
+        latestPreview = null;
+      }
+
+      latestPreview = null;
       await figma.clientStorage.setAsync('source', msg.source);
+      const results = findAll(msg.componentName, msg.source, msg.level);
+
+      if (results.length > 0) {
+        generatePreview(msg);
+        generateResults(msg);
+      } else  {
+        generateResults(msg);
+      }
     }
 
     if (msg.type === 'fetch-results') {
@@ -107,7 +133,14 @@ if (figma.editorType === 'figma') {
     }
 
     if (msg.type === 'preview:remove') {
-      if (!!latestPreview) latestPreview.remove();
+      if (!!latestPreview) {
+        try {
+          latestPreview.remove();
+        } catch (e) {
+          latestPreview = null;
+        }
+      }
+
       latestPreview = null;
     }
 

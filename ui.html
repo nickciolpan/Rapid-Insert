@@ -185,7 +185,7 @@
     parent.postMessage({ pluginMessage: { type: 'fetch-results', componentName: getQuery(), source: getSource()} }, '*')
   }
   document.getElementById('source-page-widget').onchange = (event) => {
-    parent.postMessage({ pluginMessage: { type: 'update-source', source: event.target.value } }, '*')
+    parent.postMessage({ pluginMessage: { type: 'update-source', source: event.target.value, componentName: getQuery() } }, '*')
   }
 
 </script>
