@@ -32,8 +32,11 @@ const findAll = (query: string, source: any, level = null) => {
 
     while (!(res = walker.next()).done) {
       let node = res.value
+      console.log(node.type)
       if (node.type === (level ?? 'INSTANCE') && isMatch(node.name)) {
         nodes.push(node);
+      } else if (node.type === 'COMPONENT' && isMatch(node.name)) {
+        nodes.push(node.createInstance());
       }
     }
     
@@ -49,7 +52,9 @@ const findOne = (match: any, source: any, level = null) => {
       let node = res.value
       if (node.type === (level ?? 'INSTANCE') && node.name === match) {
         result = node;
-      }
+      } else if (node.type === 'COMPONENT' && node.name === match) {
+        result = node.createInstance();
+      } 
     }
     
     return result;
@@ -76,9 +81,9 @@ const generatePreview = (msg) => {
   if (!!node) {
     node.visible = true;
     latestPreview = node.clone();
+    latestPreview.x = figma.viewport.center.x - (latestPreview.width/2);
+    latestPreview.y = figma.viewport.center.y - (latestPreview.height/2);
     figma.currentPage.selection = [latestPreview];
-    figma.viewport.scrollAndZoomIntoView([latestPreview]);
-    
   }
 }
 
@@ -167,7 +172,6 @@ figma.ui.onmessage = async msg => {
   if (msg.type === 'cancel') {
     figma.closePlugin();
   }
-
 
   // Make sure to close the plugin when you're done. Otherwise the plugin will
   // keep running, which shows the cancel button at the bottom of the screen.
