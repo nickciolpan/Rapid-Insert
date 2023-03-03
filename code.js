@@ -25,7 +25,7 @@ const useWalker = (source) => {
     let walker = walkTree(sourcePage);
     return { walker };
 };
-const findAll = (query, source, level = null) => {
+const findAll = (query, source) => {
     // If no query is provided, return no results
     if (query.length <= 1)
         return [];
@@ -37,33 +37,41 @@ const findAll = (query, source, level = null) => {
     };
     while (!(res = walker.next()).done) {
         let node = res.value;
-        if (node.type === (level !== null && level !== void 0 ? level : 'INSTANCE') && isMatch(node.name)) {
-            nodes.push(node);
+        if (isMatch(node.name)) {
+            if (node.type === 'COMPONENT') {
+                nodes.push(node.createInstance());
+            }
+            else {
+                nodes.push(node);
+            }
         }
     }
     return nodes;
 };
-const findOne = (match, source, level = null) => {
+const findOne = (match, source) => {
     const { walker } = useWalker(source);
     let res;
     let result;
     while (!(res = walker.next()).done) {
         let node = res.value;
-        if (node.type === (level !== null && level !== void 0 ? level : 'INSTANCE') && node.name === match) {
+        if (node.name === match) {
             result = node;
+            if (node.type === 'COMPONENT') {
+                result = node.createInstance();
+            }
         }
     }
     return result;
 };
 const generateResults = (msg) => {
-    const results = findAll(msg.componentName, msg.source, msg.level);
+    const results = findAll(msg.componentName, msg.source);
     figma.ui.postMessage({
         type: 'results',
         results: Array.from(new Map(results.map(r => [r.name, r])).keys())
     });
 };
 const generatePreview = (msg) => {
-    const node = findOne(msg.componentName, msg.source, msg.level);
+    const node = findOne(msg.componentName, msg.source);
     if (!!latestPreview) {
         try {
             latestPreview.remove();
@@ -75,8 +83,9 @@ const generatePreview = (msg) => {
     if (!!node) {
         node.visible = true;
         latestPreview = node.clone();
+        latestPreview.x = figma.viewport.center.x - (latestPreview.width / 2);
+        latestPreview.y = figma.viewport.center.y - (latestPreview.height / 2);
         figma.currentPage.selection = [latestPreview];
-        figma.viewport.scrollAndZoomIntoView([latestPreview]);
     }
 };
 // This plugin will open a window to prompt the user to enter a number, and
@@ -109,7 +118,7 @@ figma.ui.onmessage = (msg) => __awaiter(this, void 0, void 0, function* () {
         }
         latestPreview = null;
         yield figma.clientStorage.setAsync('source', msg.source);
-        const results = findAll(msg.componentName, msg.source, msg.level);
+        const results = findAll(msg.componentName, msg.source);
         if (results.length > 0) {
             generatePreview(msg);
             generateResults(msg);
@@ -144,7 +153,7 @@ figma.ui.onmessage = (msg) => __awaiter(this, void 0, void 0, function* () {
         generatePreview(msg);
     }
     if (msg.type === 'insert-component') {
-        const node = findOne(msg.componentName, msg.source, msg.level);
+        const node = findOne(msg.componentName, msg.source);
         node.visible = true;
         const clone = node.clone();
         figma.currentPage.selection = [clone];

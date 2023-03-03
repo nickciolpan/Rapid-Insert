@@ -18,7 +18,7 @@ const useWalker = (source) => {
   let walker = walkTree(sourcePage)
   return {walker};
 }
-const findAll = (query: string, source: any, level = null) => {
+const findAll = (query: string, source: any) => {
     // If no query is provided, return no results
     if (query.length <= 1) return [];
 
@@ -32,36 +32,39 @@ const findAll = (query: string, source: any, level = null) => {
 
     while (!(res = walker.next()).done) {
       let node = res.value
-      console.log(node.type)
-      if (node.type === (level ?? 'INSTANCE') && isMatch(node.name)) {
-        nodes.push(node);
-      } else if (node.type === 'COMPONENT' && isMatch(node.name)) {
-        nodes.push(node.createInstance());
-      }
+      if (isMatch(node.name)) {
+        if (node.type === 'COMPONENT') {
+          nodes.push(node.createInstance());
+        } else {
+          nodes.push(node);
+        }
+      } 
     }
     
     return nodes;
 }
 
-const findOne = (match: any, source: any, level = null) => {
+const findOne = (match: any, source: any) => {
     const { walker } = useWalker(source);
     let res: { value: any; };
     let result: any;
 
     while (!(res = walker.next()).done) {
       let node = res.value
-      if (node.type === (level ?? 'INSTANCE') && node.name === match) {
+      if (node.name === match) {
         result = node;
-      } else if (node.type === 'COMPONENT' && node.name === match) {
-        result = node.createInstance();
+        if (node.type === 'COMPONENT') {
+          result = node.createInstance();
+        } 
       } 
+
     }
     
     return result;
 }
 
 const generateResults = (msg) => {
-  const results = findAll(msg.componentName, msg.source, msg.level);
+  const results = findAll(msg.componentName, msg.source);
   figma.ui.postMessage({
     type: 'results', 
     results: Array.from(new Map(results.map(r => [r.name, r])).keys())
@@ -69,7 +72,7 @@ const generateResults = (msg) => {
 }
 
 const generatePreview = (msg) => {
-  const node = findOne(msg.componentName, msg.source, msg.level)
+  const node = findOne(msg.componentName, msg.source)
   if (!!latestPreview) {
     try {
       latestPreview.remove();
@@ -121,7 +124,7 @@ figma.ui.onmessage = async msg => {
 
     latestPreview = null;
     await figma.clientStorage.setAsync('source', msg.source);
-    const results = findAll(msg.componentName, msg.source, msg.level);
+    const results = findAll(msg.componentName, msg.source);
 
     if (results.length > 0) {
       generatePreview(msg);
@@ -161,7 +164,7 @@ figma.ui.onmessage = async msg => {
   }
 
   if (msg.type === 'insert-component') {
-    const node = findOne(msg.componentName, msg.source, msg.level)
+    const node = findOne(msg.componentName, msg.source)
     node.visible = true;
     const clone = node.clone();
 
