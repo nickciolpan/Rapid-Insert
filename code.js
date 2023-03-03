@@ -37,13 +37,8 @@ const findAll = (query, source) => {
     };
     while (!(res = walker.next()).done) {
         let node = res.value;
-        if (isMatch(node.name)) {
-            if (node.type === 'COMPONENT') {
-                nodes.push(node.createInstance());
-            }
-            else {
-                nodes.push(node);
-            }
+        if (isMatch(node.name) && node.type !== 'PAGE') {
+            nodes.push(node);
         }
     }
     return nodes;
@@ -54,16 +49,14 @@ const findOne = (match, source) => {
     let result;
     while (!(res = walker.next()).done) {
         let node = res.value;
-        if (node.name === match) {
+        if (node.name === match && node.type !== 'PAGE') {
             result = node;
-            if (node.type === 'COMPONENT') {
-                result = node.createInstance();
-            }
         }
     }
     return result;
 };
 const generateResults = (msg) => {
+    console.log(msg);
     const results = findAll(msg.componentName, msg.source);
     figma.ui.postMessage({
         type: 'results',
@@ -82,7 +75,7 @@ const generatePreview = (msg) => {
     }
     if (!!node) {
         node.visible = true;
-        latestPreview = node.clone();
+        latestPreview = node.type === 'COMPONENT' ? node.createInstance() : node.clone();
         latestPreview.x = figma.viewport.center.x - (latestPreview.width / 2);
         latestPreview.y = figma.viewport.center.y - (latestPreview.height / 2);
         figma.currentPage.selection = [latestPreview];
