@@ -1,72 +1,62 @@
-
 <div>
   <div
-    style="display: flex; width: 100%; font-size: 16px; line-height: 1; border-bottom: 1px solid #4C2FFC">
+    style="display: flex; width: 100%; font-size: 12px; line-height: 1; border-bottom: 1px solid #F5F5F5">
     <input 
       id="search-component-widget" 
       type="search" 
       placeholder="I'm looking for a..."
-      style="outline: none; width: 100%; height: 30px; border: 0; font-size: inherit; line-height: inherit;"
+      style="padding: 0 10px; outline: none; width: 100%; height: 30px; border: 0; font-size: inherit; line-height: inherit;"
       >
-    <div style="display:flex; align-items: center; font-size: inherit; line-height: inherit;"><span style="font-family: Arial, Helvetica, sans-serif;">from: </span> 
-      <select
-       style="min-width: 100px; width: 100%; height: 30px; border: 0; font-size: inherit; line-height: inherit;"
-       id="source-page-widget"></select></div>
+    <div style="display:flex; align-items: center; font-size: inherit; line-height: inherit; border-left: 1px solid #F5F5F5; padding-left: 5px; ">
+      <select 
+       required
+       placeholder="From:"
+       style="min-width: 100px; width: 100%; height: 30px; border: 0; font-size: inherit; line-height: inherit; padding: 0 10px; margin-right: 10px;"
+       id="source-page-widget">
+       <option value="" disabled selected>From:</option>
+      </select></div>
   </div>
   <ul 
   id="component-results-outlet"
-  style="list-style: none; padding: 0; margin-top: 10px;"
+  style="list-style: none; padding: 10px; margin: 0;"
   ><ul/>
 </div>
 <script>
 
-  // TODO:
-  // 1. Reload logic after source change
-  // 2. Add settings: a)disbale preview b) adjsut component level
-  // 3. fix scroll and keyboard bindings while nativ einput is actvie (See soure select)
-  // 4. Create publishable assets (icon, cover and copy text)
+  document.getElementsByTagName('body')[0].style.margin = 0;
 
-  // value getters utils
   const getQuery = () => document.getElementById('search-component-widget').value;
   const getSource = () => document.getElementById('source-page-widget').value;
 
-  // styling utils
   const applyListItemHoverStyles = (li) => {
-    li.style.backgroundColor = '#4C2FFC';
-    li.style.color= 'white';
-    li.style.padding = '3px';
+    li.style.backgroundColor = '#E8F4FE';
+    li.style.color= 'black';
+    li.style.padding = '10px 8px';
   }
 
   const applyListItemStyles = (li) => {
     li.style.backgroundColor = 'transparent';
     li.style.color= 'black';
-    li.style.padding = '5px';
-    li.style.borderRadius= '5px';
+    li.style.padding = '10px 8px';
     li.style.cursor = "pointer";
-    li.style.fontSize = "inherit";
+    li.style.fontSize = "12px";
     li.style.lineHeight = "inherit";
-    li.style.fontFamily = "Arial, Helvetica, sans-serif";
+    li.style.fontFamily = "Helvetica, Arial, sans-serif";
   }
 
-  // Data to retrieve or actions to perform on the initial plugin load (e.g. available pages)  
   parent.postMessage({ pluginMessage: { type: 'fetch-pages'} }, '*')
   parent.postMessage({ pluginMessage: { type: 'get-current-source'} }, '*')
 
   window.onmessage = ({data}) => {
-    // Focus the search input as soon as the plugin fires
     ((searchComponentWidget) => {
       if (!!searchComponentWidget) searchComponentWidget.focus();
     })(document.getElementById('search-component-widget'));
 
     switch (data.pluginMessage.type) {
-      // If the user has previous selected a source page, it will retrieve it
-      // from the clientStorage and select it in the dropdown. 
       case 'retrieved-current-source':
           document.getElementById('source-page-widget').value = data.pluginMessage.source;
           break;
 
-        // Build the available pagas dropdown
-        // This will serve as the source in which the user will search for the component
         case 'pages':
           ((source) => {
             if (!!source) {
@@ -83,11 +73,9 @@
 
         case 'results':
           ((outlet) => {
-          // clear the list's contents and prepare a new document fragment
             outlet.innerHTML = ''; 
             const fragment = new DocumentFragment()
 
-            //retrieve the results from the plugin message
             const { results }= data.pluginMessage;
 
             results.map((result, index) => {
@@ -96,7 +84,6 @@
               li.classList.add('result');
               applyListItemStyles(li);
 
-              // Always make the first result, the selected one
               if (index === 0) {
                 parent.postMessage({ pluginMessage: { type: 'preview', componentName: li.textContent, source: getSource()} }, '*')
                 li.classList.add('selected');
